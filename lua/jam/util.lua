@@ -7,9 +7,11 @@ function M.notify(message, level)
 end
 
 function M.urlencode(value)
-  return (tostring(value):gsub("\n", "\r\n"):gsub("([^%w%-%.%_%~])", function(char)
-    return string.format("%%%02X", string.byte(char))
-  end))
+  return (
+    tostring(value):gsub("\n", "\r\n"):gsub("([^%w%-%.%_%~])", function(char)
+      return string.format("%%%02X", string.byte(char))
+    end)
+  )
 end
 
 function M.query(params)

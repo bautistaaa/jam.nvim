@@ -28,7 +28,10 @@ local function entry_maker(item)
   return {
     value = item,
     display = label,
-    ordinal = table.concat({ item.name or "", item.subtitle or "", item.album or "", item.kind or "" }, " "),
+    ordinal = table.concat(
+      { item.name or "", item.subtitle or "", item.album or "", item.kind or "" },
+      " "
+    ),
   }
 end
 
@@ -57,11 +60,14 @@ local function async_finder(provider, search_config)
         return
       end
 
-      self.timer = vim.uv.new_timer()
-      self.timer:start(search_config.debounce_ms, 0, function()
-        self.timer:stop()
-        self.timer:close()
-        self.timer = nil
+      local timer = vim.uv.new_timer()
+      self.timer = timer
+      timer:start(search_config.debounce_ms, 0, function()
+        timer:stop()
+        timer:close()
+        if self.timer == timer then
+          self.timer = nil
+        end
         vim.schedule(function()
           provider:search(prompt, search_config, function(err, results)
             if self.closed or generation ~= self.generation then
@@ -135,7 +141,7 @@ function M.open(provider, config, opts)
 
   pickers
     .new(picker_opts, {
-      prompt_title = "jam.nvim · Spotify",
+      prompt_title = "jam.nvim · " .. config.provider,
       finder = async_finder(provider, config.search),
       sorter = telescope_config.generic_sorter(picker_opts),
       previewer = previewer(config.artwork),
@@ -152,7 +158,12 @@ function M.open(provider, config, opts)
         local function queue()
           local selected = action_state.get_selected_entry()
           if selected then
-            run_action(provider, "add_to_queue", selected.value, "Added to queue: " .. selected.value.name)
+            run_action(
+              provider,
+              "add_to_queue",
+              selected.value,
+              "Added to queue: " .. selected.value.name
+            )
           end
         end
         local function pause()

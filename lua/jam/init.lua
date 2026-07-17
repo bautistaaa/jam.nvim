@@ -6,7 +6,11 @@ local M = {}
 
 function M.setup(opts)
   providers.reset()
-  return config.setup(opts)
+  local values = config.setup(opts)
+  pcall(function()
+    require("telescope").load_extension("jam")
+  end)
+  return values
 end
 
 local function provider()
@@ -92,7 +96,8 @@ function M.command(args)
 end
 
 function M.complete(arg_lead)
-  local commands = { "search", "auth", "logout", "pause", "next", "previous", "now-playing", "health" }
+  local commands =
+    { "search", "auth", "logout", "pause", "next", "previous", "now-playing", "health" }
   return vim.tbl_filter(function(command)
     return vim.startswith(command, arg_lead)
   end, commands)

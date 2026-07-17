@@ -9,18 +9,17 @@ local AUTHORIZE_URL = "https://accounts.spotify.com/authorize"
 local TOKEN_URL = "https://accounts.spotify.com/api/token"
 
 local function random_urlsafe(bytes)
-  local result = vim.system({ "openssl", "rand", "-base64", tostring(bytes) }, { text = true }):wait()
+  local result = vim.system({ "openssl", "rand", tostring(bytes) }, { text = false }):wait()
   if result.code ~= 0 then
     return nil, "openssl could not generate secure random data"
   end
-  return util.base64url(vim.base64.decode(vim.trim(result.stdout)))
+  return util.base64url(result.stdout)
 end
 
 local function challenge(verifier)
-  local result = vim.system(
-    { "openssl", "dgst", "-sha256", "-binary" },
-    { stdin = verifier, text = false }
-  ):wait()
+  local result = vim
+    .system({ "openssl", "dgst", "-sha256", "-binary" }, { stdin = verifier, text = false })
+    :wait()
   if result.code ~= 0 then
     return nil, "openssl could not generate the PKCE challenge"
   end
@@ -35,7 +34,12 @@ local function parse_redirect(uri)
   if host ~= "127.0.0.1" and host ~= "localhost" then
     return nil, "redirect_uri host must be localhost or 127.0.0.1"
   end
-  return { host = host, port = tonumber(port), path = callback_path }
+  return {
+    host = host,
+    bind_host = host == "localhost" and "127.0.0.1" or host,
+    port = tonumber(port),
+    path = callback_path,
+  }
 end
 
 function SpotifyAuth.new(config)
@@ -81,7 +85,11 @@ function SpotifyAuth:refresh(callback)
 end
 
 function SpotifyAuth:get_access_token(callback)
-  if self.tokens and self.tokens.access_token and (self.tokens.expires_at or 0) > os.time() + 30 then
+  if
+    self.tokens
+    and self.tokens.access_token
+    and (self.tokens.expires_at or 0) > os.time() + 30
+  then
     callback(nil, self.tokens.access_token)
     return
   end
@@ -121,7 +129,7 @@ function SpotifyAuth:login(callback)
   local state = assert(random_urlsafe(24))
 
   local server = vim.uv.new_tcp()
-  local ok, bind_err = server:bind(redirect.host, redirect.port)
+  local ok, bind_err = server:bind(redirect.bind_host, redirect.port)
   if not ok then
     callback("Could not bind Spotify callback server: " .. tostring(bind_err))
     server:close()
@@ -131,19 +139,40 @@ function SpotifyAuth:login(callback)
 
   server:listen(1, function(listen_err)
     if listen_err then
+      server:close()
+      self.server = nil
       vim.schedule(function()
         callback("Spotify callback server failed: " .. listen_err)
       end)
       return
     end
     local client = vim.uv.new_tcp()
-    server:accept(client)
+    local accepted, accept_err = server:accept(client)
+    if not accepted then
+      client:close()
+      server:close()
+      self.server = nil
+      vim.schedule(function()
+        callback("Spotify callback connection failed: " .. tostring(accept_err))
+      end)
+      return
+    end
+    local request_data = ""
     client:read_start(function(read_err, data)
-      if read_err or not data then
+      if read_err then
+        client:close()
+        return
+      end
+      if not data then
+        client:close()
+        return
+      end
+      request_data = request_data .. data
+      if not request_data:find("\r\n\r\n", 1, true) then
         return
       end
       client:read_stop()
-      local target = data:match("^GET%s+([^%s]+)")
+      local target = request_data:match("^GET%s+([^%s]+)")
       local path, query_string = target and target:match("^([^?]+)%??(.*)$")
       local params = {}
       for key, value in (query_string or ""):gmatch("([^&=?]+)=([^&]*)") do

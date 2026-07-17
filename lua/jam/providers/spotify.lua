@@ -35,11 +35,9 @@ local function normalize(item, kind)
     uri = item.uri,
     kind = kind,
     name = item.name,
-    subtitle = kind == "track" and artists(item.artists)
-      or kind == "album" and artists(item.artists)
-      or kind == "artist" and "Artist"
-      or owner and ("Playlist by " .. owner)
-      or kind,
+    subtitle = kind == "track" and artists(item.artists) or kind == "album" and artists(
+      item.artists
+    ) or kind == "artist" and "Artist" or owner and ("Playlist by " .. owner) or kind,
     album = album and album.name or (kind == "album" and item.name or nil),
     duration_ms = item.duration_ms,
     image_url = image_url((album and album.images) or item.images),
@@ -85,7 +83,8 @@ function Spotify:search(query, options, callback)
       return
     end
     local results = {}
-    local plural = { track = "tracks", album = "albums", artist = "artists", playlist = "playlists" }
+    local plural =
+      { track = "tracks", album = "albums", artist = "artists", playlist = "playlists" }
     for _, kind in ipairs(types) do
       for _, item in ipairs((response[plural[kind]] or {}).items or {}) do
         if item then

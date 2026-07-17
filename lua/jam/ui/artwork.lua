@@ -2,6 +2,7 @@ local util = require("jam.util")
 
 local M = {
   active_images = {},
+  active_urls = {},
 }
 
 local function image_terminal()
@@ -29,6 +30,7 @@ function M.detect(config)
 end
 
 function M.clear(buffer)
+  M.active_urls[buffer] = nil
   local image = M.active_images[buffer]
   if image then
     pcall(image.clear, image)
@@ -38,6 +40,7 @@ end
 
 local function render_image(buffer, window, url, config, done)
   M.clear(buffer)
+  M.active_urls[buffer] = url
   local ok, image_module = pcall(require, "image")
   if not ok then
     done("image.nvim could not be loaded")
@@ -45,6 +48,9 @@ local function render_image(buffer, window, url, config, done)
   end
 
   vim.schedule(function()
+    if M.active_urls[buffer] ~= url then
+      return
+    end
     local created, image = pcall(image_module.from_url, url, {
       buffer = buffer,
       window = window,
@@ -79,11 +85,18 @@ local function render_chafa(buffer, url, config, done)
       file,
     }, { text = true }, function(result)
       vim.schedule(function()
-        if result.code ~= 0 or not vim.api.nvim_buf_is_valid(buffer) then
+        if
+          result.code ~= 0
+          or not vim.api.nvim_buf_is_valid(buffer)
+          or M.active_urls[buffer] ~= url
+        then
           done("chafa could not render this artwork")
           return
         end
         vim.api.nvim_buf_set_lines(buffer, 0, -1, false, vim.split(result.stdout, "\n"))
+        if not config.cache then
+          vim.uv.fs_unlink(file)
+        end
         done()
       end)
     end)
@@ -93,13 +106,21 @@ local function render_chafa(buffer, url, config, done)
     convert()
     return
   end
-  vim.system({ "curl", "--fail", "--silent", "--location", "--output", file, url }, {}, function(result)
-    if result.code ~= 0 then
-      done("album artwork download failed")
-      return
+  vim.system(
+    { "curl", "--fail", "--silent", "--location", "--output", file, url },
+    {},
+    function(result)
+      if result.code ~= 0 then
+        done("album artwork download failed")
+        return
+      end
+      vim.schedule(function()
+        if M.active_urls[buffer] == url then
+          convert()
+        end
+      end)
     end
-    convert()
-  end)
+  )
 end
 
 function M.render(buffer, window, url, config, done)
@@ -108,6 +129,7 @@ function M.render(buffer, window, url, config, done)
     done("no artwork is available")
     return
   end
+  M.active_urls[buffer] = url
   local backend = M.detect(config)
   if backend == "image" then
     render_image(buffer, window, url, config, done)
