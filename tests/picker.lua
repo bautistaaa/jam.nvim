@@ -1,3 +1,6 @@
+vim.o.columns = 160
+vim.o.lines = 50
+
 local config = require("jam.config").setup({
   artwork = { enabled = false },
 })
@@ -14,6 +17,7 @@ local provider = {
           kind = "track",
           name = query .. " result one",
           subtitle = "Test Artist",
+          description = "A   test\npodcast " .. string.rep("with a long description ", 20),
         },
         {
           id = "track-two",
@@ -60,6 +64,25 @@ local function visible_results()
 end
 
 assert(#visible_results() == 2, "search result buffer was blank before resize")
+picker:set_selection(picker:get_row(1))
+assert(
+  vim.wait(1000, function()
+    for _, buffer in ipairs(vim.api.nvim_list_bufs()) do
+      if
+        buffer ~= picker.results_bufnr
+        and buffer ~= prompt_buffer
+        and vim.api.nvim_buf_is_valid(buffer)
+      then
+        local preview = table.concat(vim.api.nvim_buf_get_lines(buffer, 0, -1, false), "\n")
+        if preview:find("A test podcast", 1, true) and preview:find("…", 1, true) then
+          return true
+        end
+      end
+    end
+    return false
+  end),
+  "preview description metadata did not render"
+)
 vim.o.columns = math.max(80, vim.o.columns - 20)
 vim.o.lines = math.max(24, vim.o.lines - 5)
 vim.cmd("doautocmd VimResized")

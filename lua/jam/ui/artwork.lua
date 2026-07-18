@@ -181,13 +181,13 @@ local function decode_ansi(output)
   return lines, highlights
 end
 
-local function center_artwork(lines, highlights, window)
+local function center_artwork(lines, highlights, window, reserved_lines)
   if not window or not vim.api.nvim_win_is_valid(window) then
     return lines, highlights
   end
 
   local window_width = vim.api.nvim_win_get_width(window)
-  local window_height = vim.api.nvim_win_get_height(window)
+  local window_height = math.max(1, vim.api.nvim_win_get_height(window) - (reserved_lines or 0))
   local artwork_width = 0
   for _, line in ipairs(lines) do
     artwork_width = math.max(artwork_width, vim.fn.strdisplaywidth(line))
@@ -215,6 +215,18 @@ local function render_chafa(buffer, window, url, config, done)
   local cache_dir = vim.fs.joinpath(vim.fn.stdpath("cache"), "jam.nvim", "artwork")
   vim.fn.mkdir(cache_dir, "p")
   local file = vim.fs.joinpath(cache_dir, vim.fn.sha256(url) .. ".img")
+  local render_width = config.width
+  local render_height = config.height
+  if window and vim.api.nvim_win_is_valid(window) then
+    render_width = math.max(1, math.min(render_width, vim.api.nvim_win_get_width(window)))
+    render_height = math.max(
+      1,
+      math.min(
+        render_height,
+        vim.api.nvim_win_get_height(window) - (config.reserved_lines or 0)
+      )
+    )
+  end
 
   local function convert()
     vim.system({
@@ -226,7 +238,7 @@ local function render_chafa(buffer, window, url, config, done)
       "--work",
       "9",
       "--size",
-      string.format("%dx%d", config.width, config.height),
+      string.format("%dx%d", render_width, render_height),
       file,
     }, { text = true }, function(result)
       vim.schedule(function()
@@ -241,7 +253,7 @@ local function render_chafa(buffer, window, url, config, done)
         vim.api.nvim_buf_clear_namespace(buffer, artwork_namespace, 0, -1)
         reset_highlight_groups()
         local lines, highlights = decode_ansi(result.stdout)
-        lines, highlights = center_artwork(lines, highlights, window)
+        lines, highlights = center_artwork(lines, highlights, window, config.reserved_lines)
         vim.api.nvim_buf_set_lines(buffer, 0, -1, false, lines)
         for _, highlight in ipairs(highlights) do
           vim.api.nvim_buf_add_highlight(

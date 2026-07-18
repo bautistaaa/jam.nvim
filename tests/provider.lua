@@ -115,6 +115,10 @@ http.request = function(opts, callback)
           name = "First Episode",
           duration_ms = 1200000,
           images = { { url = "https://example.com/episode-one.jpg" } },
+          resume_point = {
+            fully_played = true,
+            resume_position_ms = 1200000,
+          },
         },
       },
       next = "https://api.spotify.com/v1/shows/test-show/episodes?limit=50&offset=50",
@@ -138,6 +142,7 @@ local episodes
 provider:show_episodes({
   id = "test-show",
   name = "Test Podcast",
+  publisher = "Test Publisher",
   image_url = "https://example.com/show.jpg",
 }, function(err, items)
   callback_error = err
@@ -150,6 +155,8 @@ assert(show_requests[1].url:find("/shows/test%-show/episodes%?limit=50"))
 assert(#episodes == 2)
 assert(episodes[1].kind == "episode")
 assert(episodes[1].podcast == "Test Podcast")
+assert(episodes[1].publisher == "Test Publisher")
+assert(episodes[1].fully_played == true)
 assert(episodes[1].list_position == 1)
 assert(episodes[2].image_url == "https://example.com/show.jpg")
 assert(episodes[2].list_position == 2)
@@ -173,6 +180,47 @@ for _, filter in ipairs({
   assert(search_request.url:find("type=" .. filter.expected_type, 1, true))
   assert(search_request.url:find("q=" .. util.urlencode(filter.query:sub(4)), 1, true))
 end
+
+local metadata_results
+http.request = function(_, callback)
+  callback(nil, {
+    artists = {
+      items = {
+        {
+          id = "metadata-artist",
+          uri = "spotify:artist:metadata",
+          name = "Metadata Artist",
+          followers = { total = 1234567 },
+          popularity = 88,
+          genres = { "pop", "rock" },
+        },
+      },
+    },
+    shows = {
+      items = {
+        {
+          id = "metadata-show",
+          uri = "spotify:show:metadata",
+          name = "Metadata Podcast",
+          publisher = "Metadata Publisher",
+          total_episodes = 42,
+          languages = { "en" },
+          description = "A test podcast.",
+        },
+      },
+    },
+  })
+end
+provider:search("metadata", { types = { "artist", "show" } }, function(err, results)
+  callback_error = err
+  metadata_results = results
+end)
+assert(not callback_error, callback_error)
+assert(metadata_results[1].followers == 1234567)
+assert(metadata_results[1].popularity == 88)
+assert(metadata_results[1].genres[1] == "pop")
+assert(metadata_results[2].publisher == "Metadata Publisher")
+assert(metadata_results[2].total_episodes == 42)
 
 local playback_error
 local episode_play_request

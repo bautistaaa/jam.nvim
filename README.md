@@ -13,6 +13,7 @@ Search Spotify and control playback from a Telescope picker without leaving Neov
 - Play, pause, skip, go back, and add tracks or episodes to the queue
 - OAuth Authorization Code flow with PKCE—no client secret in your config
 - Album-art previews through `image.nvim` or `chafa`, with automatic detection
+- Contextual metadata for artists, albums, tracks, podcasts, and episodes
 - `:Jam` and `:Telescope jam` entry points
 - Health diagnostics with `:checkhealth jam`
 

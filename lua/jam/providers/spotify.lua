@@ -57,7 +57,19 @@ local function normalize(item, kind)
     album = album and album.name or (kind == "album" and item.name or nil),
     podcast = item.show and item.show.name or (kind == "show" and item.name or nil),
     duration_ms = item.duration_ms,
-    release_date = item.release_date,
+    release_date = item.release_date or (album and album.release_date),
+    explicit = item.explicit,
+    popularity = item.popularity,
+    followers = item.followers and item.followers.total,
+    genres = item.genres,
+    publisher = item.publisher or (item.show and item.show.publisher),
+    total_episodes = item.total_episodes or (item.show and item.show.total_episodes),
+    languages = item.languages,
+    description = item.description,
+    total_tracks = item.total_tracks or (album and album.total_tracks),
+    album_type = item.album_type or (album and album.album_type),
+    progress_ms = item.resume_point and item.resume_point.resume_position_ms,
+    fully_played = item.resume_point and item.resume_point.fully_played,
     disc_number = item.disc_number,
     track_number = item.track_number,
     image_url = image_url((album and album.images) or item.images),
@@ -218,6 +230,7 @@ function Spotify:show_episodes(show, callback)
           local episode = normalize(item, "episode")
           episode.subtitle = show.name
           episode.podcast = show.name
+          episode.publisher = show.publisher
           episode.image_url = episode.image_url or show.image_url
           episode.list_position = #episodes + 1
           table.insert(episodes, episode)

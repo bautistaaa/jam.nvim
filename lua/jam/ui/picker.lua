@@ -114,6 +114,172 @@ local function async_finder(provider, search_config)
   })
 end
 
+local function compact_number(value)
+  if not value then
+    return nil
+  elseif value >= 1000000 then
+    return string.format("%.1fM", value / 1000000)
+  elseif value >= 1000 then
+    return string.format("%.1fK", value / 1000)
+  end
+  return tostring(value)
+end
+
+local function wrap_text(text, width, max_lines)
+  local lines = {}
+  local current = ""
+  local truncated = false
+  for word in text:gmatch("%S+") do
+    local candidate = current == "" and word or (current .. " " .. word)
+    if vim.fn.strdisplaywidth(candidate) <= width then
+      current = candidate
+    else
+      if current ~= "" then
+        table.insert(lines, current)
+      end
+      if max_lines and #lines >= max_lines then
+        truncated = true
+        break
+      end
+      current = word
+    end
+  end
+  if not truncated and current ~= "" and (not max_lines or #lines < max_lines) then
+    table.insert(lines, current)
+  end
+  if truncated and #lines > 0 then
+    local last = lines[#lines]
+    while
+      last ~= ""
+      and vim.fn.strdisplaywidth(last .. "…") > width
+    do
+      last = vim.fn.strcharpart(last, 0, vim.fn.strchars(last) - 1)
+    end
+    lines[#lines] = last .. "…"
+  end
+  return lines
+end
+
+local function metadata_lines(item, width)
+  local lines = { item.name or "Unknown" }
+  local details = {}
+  if item.kind == "artist" then
+    if item.followers then
+      table.insert(details, "Followers: " .. compact_number(item.followers))
+    end
+    if item.popularity then
+      table.insert(details, "Popularity: " .. item.popularity .. "/100")
+    end
+    if #details > 0 then
+      table.insert(lines, table.concat(details, "  ·  "))
+    end
+    if item.genres and #item.genres > 0 then
+      table.insert(lines, "Genres: " .. table.concat(item.genres, ", "))
+    end
+  elseif item.kind == "show" then
+    if item.publisher then
+      table.insert(lines, item.publisher)
+    end
+    if item.total_episodes then
+      table.insert(details, "Episodes: " .. item.total_episodes)
+    end
+    if item.languages and #item.languages > 0 then
+      table.insert(details, "Languages: " .. table.concat(item.languages, ", "))
+    end
+    if item.explicit then
+      table.insert(details, "Explicit")
+    end
+    if #details > 0 then
+      table.insert(lines, table.concat(details, "  ·  "))
+    end
+  else
+    if item.subtitle and item.subtitle ~= "" then
+      table.insert(lines, item.subtitle)
+    end
+    if item.album then
+      table.insert(details, "Album: " .. item.album)
+    elseif item.podcast then
+      table.insert(details, "Podcast: " .. item.podcast)
+    end
+    if item.release_date then
+      table.insert(details, "Released: " .. item.release_date)
+    end
+    if item.duration_ms then
+      table.insert(details, "Duration: " .. duration(item.duration_ms))
+    end
+    if item.total_tracks then
+      table.insert(details, "Tracks: " .. item.total_tracks)
+    end
+    if item.album_type then
+      table.insert(details, "Type: " .. item.album_type)
+    end
+    if item.popularity then
+      table.insert(details, "Popularity: " .. item.popularity .. "/100")
+    end
+    if item.fully_played then
+      table.insert(details, "Played")
+    elseif item.progress_ms and item.progress_ms > 0 then
+      table.insert(details, "Progress: " .. duration(item.progress_ms))
+    end
+    if item.explicit then
+      table.insert(details, "Explicit")
+    end
+    if #details > 0 then
+      table.insert(lines, table.concat(details, "  ·  "))
+    end
+  end
+
+  local wrapped = {}
+  for _, line in ipairs(lines) do
+    vim.list_extend(wrapped, wrap_text(line, width))
+  end
+  if item.description and item.description ~= "" then
+    table.insert(wrapped, "")
+    local description = (item.description:gsub("%s+", " "))
+    vim.list_extend(wrapped, wrap_text(description, width, 2))
+  end
+  return wrapped
+end
+
+local function render_metadata(buffer, window, lines, center_vertically, follow_artwork)
+  if not vim.api.nvim_buf_is_valid(buffer) or not vim.api.nvim_win_is_valid(window) then
+    return
+  end
+  local width = math.max(1, vim.api.nvim_win_get_width(window) - 4)
+  local height = vim.api.nvim_win_get_height(window)
+  local rendered = {}
+  for _, line in ipairs(lines) do
+    line = vim.fn.strcharpart(line, 0, width)
+    local padding = 2 + math.max(0, math.floor((width - vim.fn.strdisplaywidth(line)) / 2))
+    table.insert(rendered, string.rep(" ", padding) .. line)
+  end
+
+  local line_count = vim.api.nvim_buf_line_count(buffer)
+  local start_line
+  if center_vertically then
+    start_line = math.max(0, math.floor((height - #rendered) / 2))
+  elseif follow_artwork then
+    start_line = math.min(line_count + 2, math.max(0, height - #rendered - 1))
+  else
+    start_line = math.max(0, height - #rendered - 1)
+  end
+  if line_count < start_line then
+    local padding = {}
+    for _ = line_count, start_line - 1 do
+      table.insert(padding, "")
+    end
+    vim.api.nvim_buf_set_lines(buffer, line_count, line_count, false, padding)
+    line_count = start_line
+  end
+  vim.api.nvim_buf_set_lines(
+    buffer,
+    start_line,
+    math.min(start_line + #rendered, line_count),
+    false,
+    rendered
+  )
+end
+
 local function previewer(artwork_config)
   local previewers = require("telescope.previewers")
   local generation = 0
@@ -125,31 +291,33 @@ local function previewer(artwork_config)
       local item = entry.value
       local buffer = self.state.bufnr
       local window = self.state.winid
+      local metadata_width = math.max(20, vim.api.nvim_win_get_width(window) - 8)
+      local metadata = metadata_lines(item, metadata_width)
+      local render_config = vim.tbl_deep_extend("force", {}, artwork_config, {
+        reserved_lines = #metadata + 2,
+      })
+      local artwork_backend = artwork.detect(render_config)
       artwork.clear(buffer)
       vim.api.nvim_buf_set_lines(buffer, 0, -1, false, {})
       artwork.render(
         buffer,
         window,
         item.image_url,
-        artwork_config,
+        render_config,
         function(err)
           if
-            not err
-            or current_generation ~= generation
+            current_generation ~= generation
             or not vim.api.nvim_buf_is_valid(buffer)
           then
             return
           end
-          vim.api.nvim_buf_set_lines(buffer, 0, -1, false, {
-            item.name or "Unknown",
-            item.subtitle or "",
-            item.album and ("Album: " .. item.album) or "",
-            item.podcast and ("Podcast: " .. item.podcast) or "",
-            item.kind and ("Type: " .. item.kind) or "",
-            item.duration_ms and ("Duration: " .. duration(item.duration_ms)) or "",
-            "",
-            item.image_url or "No album artwork",
-          })
+          render_metadata(
+            buffer,
+            window,
+            metadata,
+            err ~= nil,
+            not err and artwork_backend == "chafa"
+          )
         end
       )
     end,
