@@ -221,10 +221,7 @@ local function render_chafa(buffer, window, url, config, done)
     render_width = math.max(1, math.min(render_width, vim.api.nvim_win_get_width(window)))
     render_height = math.max(
       1,
-      math.min(
-        render_height,
-        vim.api.nvim_win_get_height(window) - (config.reserved_lines or 0)
-      )
+      math.min(render_height, vim.api.nvim_win_get_height(window) - (config.reserved_lines or 0))
     )
   end
 

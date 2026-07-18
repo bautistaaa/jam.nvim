@@ -85,12 +85,7 @@ function M.command(args)
     M.auth()
   elseif command == "logout" then
     M.logout()
-  elseif
-    command == "play"
-    or command == "pause"
-    or command == "next"
-    or command == "previous"
-  then
+  elseif command == "play" or command == "pause" or command == "next" or command == "previous" then
     M.control(command)
   elseif command == "now-playing" then
     M.now_playing()

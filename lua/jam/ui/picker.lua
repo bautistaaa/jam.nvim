@@ -48,7 +48,12 @@ local function media_entry_maker(item)
   end
   return {
     value = item,
-    display = string.format("%-5s  %-36s  %s", position, item.name or "Unknown", item.subtitle or ""),
+    display = string.format(
+      "%-5s  %-36s  %s",
+      position,
+      item.name or "Unknown",
+      item.subtitle or ""
+    ),
     ordinal = table.concat({ item.name or "", item.subtitle or "", item.album or "" }, " "),
   }
 end
@@ -149,10 +154,7 @@ local function wrap_text(text, width, max_lines)
   end
   if truncated and #lines > 0 then
     local last = lines[#lines]
-    while
-      last ~= ""
-      and vim.fn.strdisplaywidth(last .. "…") > width
-    do
+    while last ~= "" and vim.fn.strdisplaywidth(last .. "…") > width do
       last = vim.fn.strcharpart(last, 0, vim.fn.strchars(last) - 1)
     end
     lines[#lines] = last .. "…"
@@ -299,27 +301,18 @@ local function previewer(artwork_config)
       local artwork_backend = artwork.detect(render_config)
       artwork.clear(buffer)
       vim.api.nvim_buf_set_lines(buffer, 0, -1, false, {})
-      artwork.render(
-        buffer,
-        window,
-        item.image_url,
-        render_config,
-        function(err)
-          if
-            current_generation ~= generation
-            or not vim.api.nvim_buf_is_valid(buffer)
-          then
-            return
-          end
-          render_metadata(
-            buffer,
-            window,
-            metadata,
-            err ~= nil,
-            not err and artwork_backend == "chafa"
-          )
+      artwork.render(buffer, window, item.image_url, render_config, function(err)
+        if current_generation ~= generation or not vim.api.nvim_buf_is_valid(buffer) then
+          return
         end
-      )
+        render_metadata(
+          buffer,
+          window,
+          metadata,
+          err ~= nil,
+          not err and artwork_backend == "chafa"
+        )
+      end)
     end,
     teardown = function(self)
       generation = generation + 1
@@ -366,15 +359,7 @@ local function show_queued(prompt_buffer, action_state)
   end, 1500)
 end
 
-local function open_items(
-  provider,
-  config,
-  title,
-  results_title,
-  items,
-  search_opts,
-  search_query
-)
+local function open_items(provider, config, title, results_title, items, search_opts, search_query)
   local pickers = require("telescope.pickers")
   local finders = require("telescope.finders")
   local actions = require("telescope.actions")
@@ -419,7 +404,9 @@ local function open_items(
               "add_to_queue",
               selected.value,
               "Added to queue: " .. selected.value.name,
-              function() show_queued(prompt_buffer, action_state) end
+              function()
+                show_queued(prompt_buffer, action_state)
+              end
             )
           end
         end
@@ -478,7 +465,10 @@ function M.open(provider, config, opts)
               return
             end
             if #tracks == 0 then
-              util.notify("No " .. results_title:lower() .. " found for " .. item.name, vim.log.levels.WARN)
+              util.notify(
+                "No " .. results_title:lower() .. " found for " .. item.name,
+                vim.log.levels.WARN
+              )
               return
             end
             actions.close(prompt_buffer)
@@ -525,7 +515,9 @@ function M.open(provider, config, opts)
               "add_to_queue",
               selected.value,
               "Added to queue: " .. selected.value.name,
-              function() show_queued(prompt_buffer, action_state) end
+              function()
+                show_queued(prompt_buffer, action_state)
+              end
             )
           end
         end

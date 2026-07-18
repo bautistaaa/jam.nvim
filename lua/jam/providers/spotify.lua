@@ -109,8 +109,7 @@ function Spotify:search(query, options, callback)
     p = "show",
     e = "episode",
   }
-  local types =
-    options.types or { "track", "album", "artist", "playlist", "show", "episode" }
+  local types = options.types or { "track", "album", "artist", "playlist", "show", "episode" }
   if prefix then
     query = vim.trim(filtered_query)
     types = { type_by_prefix[prefix:lower()] }
@@ -254,29 +253,26 @@ function Spotify:play(item, callback)
   else
     body = { context_uri = item.uri }
   end
-  self:_request(
-    {
-      method = "PUT",
-      url = API_URL .. "/me/player/play",
-      headers = { ["Content-Type"] = "application/json" },
-      body = vim.json.encode(body),
-    },
-    function(err)
-      local lower_error = err and err:lower() or ""
-      local no_device = lower_error:find("device not found", 1, true)
-        or lower_error:find("no active device", 1, true)
-      if no_device then
-        local opened, open_err = util.open_url(item.uri)
-        if opened then
-          callback(nil, "Opened Spotify; select the track again when the app is ready")
-        else
-          callback("Could not open Spotify: " .. tostring(open_err))
-        end
-        return
+  self:_request({
+    method = "PUT",
+    url = API_URL .. "/me/player/play",
+    headers = { ["Content-Type"] = "application/json" },
+    body = vim.json.encode(body),
+  }, function(err)
+    local lower_error = err and err:lower() or ""
+    local no_device = lower_error:find("device not found", 1, true)
+      or lower_error:find("no active device", 1, true)
+    if no_device then
+      local opened, open_err = util.open_url(item.uri)
+      if opened then
+        callback(nil, "Opened Spotify; select the track again when the app is ready")
+      else
+        callback("Could not open Spotify: " .. tostring(open_err))
       end
-      callback(err)
+      return
     end
-  )
+    callback(err)
+  end)
 end
 
 function Spotify:pause(callback)
