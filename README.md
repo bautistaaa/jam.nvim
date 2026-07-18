@@ -25,7 +25,7 @@ Required:
 - [telescope.nvim](https://github.com/nvim-telescope/telescope.nvim)
 - `curl` for Spotify API requests
 - `openssl` for PKCE authentication
-- A Spotify account and application client ID
+- A Spotify account and [application client ID](#create-a-spotify-application)
 - Spotify Premium and an active Spotify Connect device for playback control
 
 Run `:checkhealth jam` after installation to verify these dependencies and your
@@ -118,23 +118,37 @@ Then call `require("jam").setup(...)` from your Lua config.
 
 ## Spotify setup
 
-1. Create an application in the [Spotify Developer Dashboard](https://developer.spotify.com/dashboard).
-2. Add `http://127.0.0.1:8765/callback` as an exact redirect URI.
-3. Put the application's client ID in your shell environment:
+### Create a Spotify application
+
+1. Sign in to the [Spotify Developer Dashboard](https://developer.spotify.com/dashboard).
+2. Select **Create app**.
+3. Enter an app name and description. A website is not required for local use.
+4. Add this exact redirect URI:
+
+   ```text
+   http://127.0.0.1:8765/callback
+   ```
+
+5. Select **Web API** when Spotify asks which APIs or SDKs the app will use,
+   accept the terms, and save the app.
+6. Open the app's settings and copy its **Client ID**. jam.nvim does not need
+   the client secret; never put the secret in your Neovim configuration.
+
+### Connect jam.nvim
+
+1. Put the client ID in your shell environment:
 
    ```sh
    export SPOTIFY_CLIENT_ID="your-client-id"
    ```
 
    Add that line to `~/.zshrc`, `~/.bashrc`, or the equivalent for your shell,
-   then start Neovim from a new terminal. A client secret is not needed and
-   should not be added to your configuration.
-4. Install jam.nvim using one of the plugin-manager examples above.
-5. Run `:checkhealth jam` and resolve any reported errors.
-6. Run `:Jam auth spotify` and finish authorization in the browser.
-7. Open Spotify and play something once so Spotify Connect marks the selected
+   then start Neovim from a new terminal.
+2. Run `:checkhealth jam` and resolve any reported errors.
+3. Run `:Jam auth spotify` and finish authorization in the browser.
+4. Open Spotify and play something once so Spotify Connect marks the selected
    device as active.
-8. Run `:Jam`, enter a search, and press `<CR>` to play a result.
+5. Run `:Jam`, enter a search, and press `<CR>` to play a result.
 
 Tokens are stored with `0600` permissions under Neovim's data directory. Run
 `:Jam logout` to remove them.
