@@ -103,10 +103,63 @@ assert(top_tracks[1].name == "Top Track")
 assert(top_tracks[1].album == "Popular Album")
 assert(top_tracks[1].list_position == 1)
 
+local show_requests = {}
+http.request = function(opts, callback)
+  table.insert(show_requests, opts)
+  if #show_requests == 1 then
+    callback(nil, {
+      items = {
+        {
+          id = "episode-one",
+          uri = "spotify:episode:one",
+          name = "First Episode",
+          duration_ms = 1200000,
+          images = { { url = "https://example.com/episode-one.jpg" } },
+        },
+      },
+      next = "https://api.spotify.com/v1/shows/test-show/episodes?limit=50&offset=50",
+    })
+  else
+    callback(nil, {
+      items = {
+        {
+          id = "episode-two",
+          uri = "spotify:episode:two",
+          name = "Second Episode",
+          duration_ms = 1800000,
+        },
+      },
+      next = vim.NIL,
+    })
+  end
+end
+
+local episodes
+provider:show_episodes({
+  id = "test-show",
+  name = "Test Podcast",
+  image_url = "https://example.com/show.jpg",
+}, function(err, items)
+  callback_error = err
+  episodes = items
+end)
+
+assert(not callback_error, callback_error)
+assert(#show_requests == 2)
+assert(show_requests[1].url:find("/shows/test%-show/episodes%?limit=50"))
+assert(#episodes == 2)
+assert(episodes[1].kind == "episode")
+assert(episodes[1].podcast == "Test Podcast")
+assert(episodes[1].list_position == 1)
+assert(episodes[2].image_url == "https://example.com/show.jpg")
+assert(episodes[2].list_position == 2)
+
 for _, filter in ipairs({
   { query = "a: Test Album", expected_type = "album" },
   { query = "t: Test Artist", expected_type = "artist" },
   { query = "s: Test Song", expected_type = "track" },
+  { query = "p: Test Podcast", expected_type = "show" },
+  { query = "e: Test Episode", expected_type = "episode" },
 }) do
   local search_request
   http.request = function(opts, callback)
@@ -121,6 +174,21 @@ for _, filter in ipairs({
   assert(search_request.url:find("q=" .. util.urlencode(filter.query:sub(4)), 1, true))
 end
 
+local playback_error
+local episode_play_request
+http.request = function(opts, callback)
+  episode_play_request = opts
+  callback(nil)
+end
+provider:play({
+  kind = "episode",
+  uri = "spotify:episode:test-episode",
+}, function(err)
+  playback_error = err
+end)
+assert(not playback_error, playback_error)
+assert(vim.json.decode(episode_play_request.body).uris[1] == "spotify:episode:test-episode")
+
 local opened_uri
 http.request = function(_, callback)
   callback("HTTP 404: Device not found")
@@ -130,7 +198,6 @@ util.open_url = function(uri)
   return true
 end
 
-local playback_error
 local playback_message
 provider:play({
   kind = "track",

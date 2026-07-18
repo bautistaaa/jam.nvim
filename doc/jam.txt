@@ -61,14 +61,15 @@ the app may not make it an active Spotify Connect device.
 :Jam now-playing          Display the current track.
 :Jam health               Run health diagnostics.
 
-Prefix a search with `a:` for albums, `t:` for artists, or `s:` for songs and
-tracks. For example: `a:Abbey Road`, `t:BTS`, or `s:One More Night`. A query
-without a prefix searches all supported item types.
+Prefix a search with `a:` for albums, `t:` for artists, `s:` for songs and
+tracks, `p:` for podcasts, or `e:` for podcast episodes. A query without a
+prefix searches all supported item types.
 
-The search picker maps <CR> to open an album or artist, or play the selected
-track or context. Albums open in disc and track order; artists open to their top
-tracks. In either track picker, <CR> plays a track and <Esc> returns to the
-original search. CTRL-Q queues the selected track and CTRL-P pauses playback.
+The search picker maps <CR> to open an album, artist, or podcast, or play the
+selected track or episode. Albums open in disc and track order, artists open to
+their top tracks, and podcasts open to their episodes. In a collection picker,
+<CR> plays the selected item and <Esc> returns to the original search. CTRL-Q
+queues the selected item and CTRL-P pauses playback.
 
 The picker can also be opened after loading the Telescope extension:
 >

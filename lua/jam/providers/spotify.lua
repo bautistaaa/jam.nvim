@@ -11,6 +11,7 @@ Spotify.capabilities = {
   playlists = true,
   album_tracks = true,
   artist_top_tracks = true,
+  show_episodes = true,
   library = true,
   artwork = true,
 }
@@ -29,19 +30,34 @@ local function artists(items)
   return table.concat(names, ", ")
 end
 
+local function subtitle(item, kind)
+  if kind == "track" or kind == "album" then
+    return artists(item.artists)
+  elseif kind == "artist" then
+    return "Artist"
+  elseif kind == "playlist" then
+    local owner = item.owner and item.owner.display_name
+    return owner and ("Playlist by " .. owner) or "Playlist"
+  elseif kind == "show" then
+    return item.publisher or "Podcast"
+  elseif kind == "episode" then
+    return item.show and item.show.name or "Podcast episode"
+  end
+  return kind
+end
+
 local function normalize(item, kind)
   local album = item.album
-  local owner = item.owner and item.owner.display_name
   return {
     id = item.id,
     uri = item.uri,
     kind = kind,
     name = item.name,
-    subtitle = kind == "track" and artists(item.artists) or kind == "album" and artists(
-      item.artists
-    ) or kind == "artist" and "Artist" or owner and ("Playlist by " .. owner) or kind,
+    subtitle = subtitle(item, kind),
     album = album and album.name or (kind == "album" and item.name or nil),
+    podcast = item.show and item.show.name or (kind == "show" and item.name or nil),
     duration_ms = item.duration_ms,
+    release_date = item.release_date,
     disc_number = item.disc_number,
     track_number = item.track_number,
     image_url = image_url((album and album.images) or item.images),
@@ -73,13 +89,16 @@ function Spotify:search(query, options, callback)
   end
   options = options or {}
   query = vim.trim(query)
-  local prefix, filtered_query = query:match("^([aAtTsS]):%s*(.*)$")
+  local prefix, filtered_query = query:match("^([aAtTsSpPeE]):%s*(.*)$")
   local type_by_prefix = {
     a = "album",
     t = "artist",
     s = "track",
+    p = "show",
+    e = "episode",
   }
-  local types = options.types or { "track", "album", "artist", "playlist" }
+  local types =
+    options.types or { "track", "album", "artist", "playlist", "show", "episode" }
   if prefix then
     query = vim.trim(filtered_query)
     types = { type_by_prefix[prefix:lower()] }
@@ -102,12 +121,21 @@ function Spotify:search(query, options, callback)
       return
     end
     local results = {}
-    local plural =
-      { track = "tracks", album = "albums", artist = "artists", playlist = "playlists" }
+    local plural = {
+      track = "tracks",
+      album = "albums",
+      artist = "artists",
+      playlist = "playlists",
+      show = "shows",
+      episode = "episodes",
+    }
     for _, kind in ipairs(types) do
-      for _, item in ipairs((response[plural[kind]] or {}).items or {}) do
-        if item then
-          table.insert(results, normalize(item, kind))
+      local group = response[plural[kind]]
+      if type(group) == "table" then
+        for _, item in ipairs(group.items or {}) do
+          if item then
+            table.insert(results, normalize(item, kind))
+          end
         end
       end
     end
@@ -172,9 +200,43 @@ function Spotify:artist_top_tracks(artist, callback)
   end)
 end
 
+function Spotify:show_episodes(show, callback)
+  if not show or not show.id then
+    callback("A Spotify podcast ID is required")
+    return
+  end
+
+  local episodes = {}
+  local function fetch(url)
+    self:_request({ url = url }, function(err, response)
+      if err then
+        callback(err)
+        return
+      end
+      for _, item in ipairs((response or {}).items or {}) do
+        if item then
+          local episode = normalize(item, "episode")
+          episode.subtitle = show.name
+          episode.podcast = show.name
+          episode.image_url = episode.image_url or show.image_url
+          episode.list_position = #episodes + 1
+          table.insert(episodes, episode)
+        end
+      end
+      if response and type(response.next) == "string" and response.next ~= "" then
+        fetch(response.next)
+      else
+        callback(nil, episodes)
+      end
+    end)
+  end
+
+  fetch(API_URL .. "/shows/" .. util.urlencode(show.id) .. "/episodes?limit=50")
+end
+
 function Spotify:play(item, callback)
   local body
-  if item.kind == "track" then
+  if item.kind == "track" or item.kind == "episode" then
     body = { uris = { item.uri } }
   else
     body = { context_uri = item.uri }

@@ -3,14 +3,14 @@
 Search Spotify and control playback from a Telescope picker without leaving Neovim.
 
 > [!NOTE]
-> jam.nvim is an early preview. Spotify is the first provider; its provider-neutral
-> core is designed for future Apple Music and YouTube Music adapters.
+> jam.nvim is an early preview. Spotify is the first provider, and support for
+> additional music services is planned as their official APIs allow.
 
 ## Features
 
-- Live, debounced Spotify search for tracks, albums, artists, and playlists
-- Album and artist drill-down for browsing album tracks and artist top tracks
-- Play, pause, skip, go back, and add tracks to the queue
+- Live Spotify search for music, playlists, podcasts, and episodes
+- Drill-down for album tracks, artist top tracks, and podcast episodes
+- Play, pause, skip, go back, and add tracks or episodes to the queue
 - OAuth Authorization Code flow with PKCE—no client secret in your config
 - Album-art previews through `image.nvim` or `chafa`, with automatic detection
 - `:Jam` and `:Telescope jam` entry points
@@ -174,22 +174,24 @@ Search filters:
 | `a:` | Albums |
 | `t:` | Artists |
 | `s:` | Songs/tracks |
+| `p:` | Podcasts |
+| `e:` | Podcast episodes |
 
-For example, `a:Abbey Road`, `t:BTS`, or `s:One More Night`. Queries without a
-prefix search tracks, albums, artists, and playlists together.
+For example, `a:Abbey Road`, `t:BTS`, `s:One More Night`, `p:Radiolab`, or
+`e:Black Holes`. Queries without a prefix search all supported item types.
 
 Picker mappings:
 
 | Mapping | Action |
 | --- | --- |
-| `<CR>` | Open an album/artist or play the selected track/context |
+| `<CR>` | Open a collection or play the selected track/episode |
 | `<C-q>` | Add selection to queue |
 | `<C-p>` | Pause playback |
-| `<Esc>` | Return from an album to the original search |
+| `<Esc>` | Return from a collection to the original search |
 
 Selecting an album opens its tracks in disc and track order. Selecting an artist
-opens their top tracks. Press `<Esc>` in either view to return to the same search
-query.
+opens their top tracks, and selecting a podcast opens its episodes. Press `<Esc>`
+in any collection view to return to the same search query.
 
 ## Configuration
 
@@ -199,7 +201,7 @@ require("jam").setup({
   search = {
     debounce_ms = 250,
     limit = 30,
-    types = { "track", "album", "artist", "playlist" },
+    types = { "track", "album", "artist", "playlist", "show", "episode" },
   },
   artwork = {
     enabled = true,
@@ -220,13 +222,15 @@ require("jam").setup({
 })
 ```
 
-## Provider design
+## Provider roadmap
 
 Provider adapters declare capabilities and implement the common search and
 playback interface. The Telescope UI does not call Spotify-specific endpoints,
 so additional providers can expose only the capabilities their APIs support.
 
-Apple Music and YouTube Music are not implemented yet. YouTube Music does not
-offer an official public playback-control API, so that adapter will require a
-carefully documented fallback rather than pretending all providers have equal
-capabilities.
+Spotify is currently the only implemented provider. More providers are planned,
+but no specific service or timeline is promised: authentication, catalog access,
+and playback controls vary significantly between platforms, and some services
+do not offer an official public playback API. Future adapters may therefore
+support search, opening items in a native app, or playback controls in different
+combinations.

@@ -8,6 +8,8 @@ local kind_labels = {
   album = "ALBUM",
   artist = "ARTIST",
   playlist = "PLAYLIST",
+  show = "PODCAST",
+  episode = "EPISODE",
 }
 
 local function duration(milliseconds)
@@ -35,7 +37,7 @@ local function entry_maker(item)
   }
 end
 
-local function album_entry_maker(item)
+local function media_entry_maker(item)
   local position
   if item.list_position then
     position = string.format("%02d", item.list_position)
@@ -116,7 +118,7 @@ local function previewer(artwork_config)
   local previewers = require("telescope.previewers")
   local generation = 0
   return previewers.new_buffer_previewer({
-    title = "Album",
+    title = "Artwork",
     define_preview = function(self, entry)
       generation = generation + 1
       local current_generation = generation
@@ -142,6 +144,7 @@ local function previewer(artwork_config)
             item.name or "Unknown",
             item.subtitle or "",
             item.album and ("Album: " .. item.album) or "",
+            item.podcast and ("Podcast: " .. item.podcast) or "",
             item.kind and ("Type: " .. item.kind) or "",
             item.duration_ms and ("Duration: " .. duration(item.duration_ms)) or "",
             "",
@@ -195,7 +198,15 @@ local function show_queued(prompt_buffer, action_state)
   end, 1500)
 end
 
-local function open_tracks(provider, config, title, tracks, search_opts, search_query)
+local function open_items(
+  provider,
+  config,
+  title,
+  results_title,
+  items,
+  search_opts,
+  search_query
+)
   local pickers = require("telescope.pickers")
   local finders = require("telescope.finders")
   local actions = require("telescope.actions")
@@ -206,10 +217,10 @@ local function open_tracks(provider, config, title, tracks, search_opts, search_
   pickers
     .new(picker_opts, {
       prompt_title = title,
-      results_title = "Tracks",
+      results_title = results_title,
       finder = finders.new_table({
-        results = tracks,
-        entry_maker = album_entry_maker,
+        results = items,
+        entry_maker = media_entry_maker,
       }),
       sorter = telescope_config.generic_sorter(picker_opts),
       previewer = previewer(config.artwork),
@@ -283,7 +294,7 @@ function M.open(provider, config, opts)
       attach_mappings = function(prompt_buffer, map)
         local loading_tracks = false
 
-        local function drill_down(item, method, title)
+        local function drill_down(item, method, title, results_title)
           if loading_tracks then
             return
           end
@@ -299,12 +310,12 @@ function M.open(provider, config, opts)
               return
             end
             if #tracks == 0 then
-              util.notify("No tracks found for " .. item.name, vim.log.levels.WARN)
+              util.notify("No " .. results_title:lower() .. " found for " .. item.name, vim.log.levels.WARN)
               return
             end
             actions.close(prompt_buffer)
             vim.schedule(function()
-              open_tracks(provider, config, title, tracks, opts, search_query)
+              open_items(provider, config, title, results_title, tracks, opts, search_query)
             end)
           end)
         end
@@ -316,12 +327,22 @@ function M.open(provider, config, opts)
           end
           if selected.value.kind == "album" and provider.album_tracks then
             local album = selected.value
-            drill_down(album, "album_tracks", "Album · " .. album.name)
+            drill_down(album, "album_tracks", "Album · " .. album.name, "Tracks")
             return
           end
           if selected.value.kind == "artist" and provider.artist_top_tracks then
             local artist = selected.value
-            drill_down(artist, "artist_top_tracks", "Artist · " .. artist.name .. " · Top Tracks")
+            drill_down(
+              artist,
+              "artist_top_tracks",
+              "Artist · " .. artist.name .. " · Top Tracks",
+              "Tracks"
+            )
+            return
+          end
+          if selected.value.kind == "show" and provider.show_episodes then
+            local show = selected.value
+            drill_down(show, "show_episodes", "Podcast · " .. show.name, "Episodes")
             return
           end
           actions.close(prompt_buffer)

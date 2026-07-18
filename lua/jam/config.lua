@@ -5,7 +5,7 @@ M.defaults = {
   search = {
     debounce_ms = 250,
     limit = 30,
-    types = { "track", "album", "artist", "playlist" },
+    types = { "track", "album", "artist", "playlist", "show", "episode" },
   },
   artwork = {
     enabled = true,
