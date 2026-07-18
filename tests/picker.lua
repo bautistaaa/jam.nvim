@@ -9,6 +9,7 @@ local search_requests = 0
 local provider = {
   search = function(_, query, _, callback)
     search_requests = search_requests + 1
+    local delay = query == "slow" and 400 or query == "fast" and 700 or 20
     vim.defer_fn(function()
       callback(nil, {
         {
@@ -27,7 +28,7 @@ local provider = {
           subtitle = "Test Artist",
         },
       })
-    end, 20)
+    end, delay)
   end,
 }
 
@@ -96,6 +97,27 @@ vim.wait(500, function()
   return false
 end)
 assert(search_requests == 1, "resizing triggered another provider search")
+
+picker:set_prompt("slow")
+assert(
+  vim.wait(1000, function()
+    return search_requests == 2
+  end),
+  "slow search did not start"
+)
+picker:set_prompt("fast")
+assert(
+  vim.wait(1000, function()
+    return search_requests == 3
+  end),
+  "fast search did not start"
+)
+assert(
+  vim.wait(2000, function()
+    return table.concat(visible_results(), "\n"):find("fast result", 1, true) ~= nil
+  end),
+  "stale search completion blanked newer results"
+)
 
 require("telescope.actions").close(prompt_buffer)
 print("jam.nvim picker tests passed")

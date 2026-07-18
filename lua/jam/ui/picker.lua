@@ -98,7 +98,6 @@ local function async_finder(provider, search_config)
         vim.schedule(function()
           provider:search(prompt, search_config, function(err, results)
             if self.closed or generation ~= self.generation then
-              process_complete()
               return
             end
             if err then
