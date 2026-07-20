@@ -9,7 +9,7 @@ Search Spotify and control playback from a Telescope picker without leaving Neov
 ## Features
 
 - Live Spotify search for music, playlists, podcasts, and episodes
-- Drill-down for album tracks, artist top tracks, and podcast episodes
+- Drill-down for album tracks, artist top tracks, podcast episodes, and playlist items
 - Play, pause, skip, go back, and add tracks or episodes to the queue
 - OAuth Authorization Code flow with PKCE—no client secret in your config
 - Album-art previews through `image.nvim` or `chafa`, with automatic detection
@@ -189,11 +189,13 @@ Search filters:
 | `a:` | Albums |
 | `t:` | Artists |
 | `s:` | Songs/tracks |
+| `l:` | Playlists |
 | `p:` | Podcasts |
 | `e:` | Podcast episodes |
 
-For example, `a:Abbey Road`, `t:BTS`, `s:One More Night`, `p:Radiolab`, or
-`e:Black Holes`. Queries without a prefix search all supported item types.
+For example, `a:Abbey Road`, `t:BTS`, `s:One More Night`, `l:Discover Weekly`,
+`p:Radiolab`, or `e:Black Holes`. Queries without a prefix search all supported
+item types.
 
 Picker mappings:
 
@@ -205,8 +207,11 @@ Picker mappings:
 | `<Esc>` | Return from a collection to the original search |
 
 Selecting an album opens its tracks in disc and track order. Selecting an artist
-opens their top tracks, and selecting a podcast opens its episodes. Press `<Esc>`
-in any collection view to return to the same search query.
+opens their top tracks, selecting a podcast opens its episodes, and selecting a
+playlist opens its items when Spotify allows it. Spotify Development Mode only
+returns playlist contents for playlists you own or collaborate on; for other
+playlists, jam.nvim plays the playlist instead. Press `<Esc>` in any collection
+view to return to the same search query.
 
 ## Configuration
 

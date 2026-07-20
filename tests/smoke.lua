@@ -20,6 +20,7 @@ assert(provider.capabilities.playback)
 assert(provider.capabilities.album_tracks)
 assert(provider.capabilities.artist_top_tracks)
 assert(provider.capabilities.show_episodes)
+assert(provider.capabilities.playlist_items)
 assert(provider.capabilities.artwork)
 
 assert(vim.fn.exists(":Jam") == 2)

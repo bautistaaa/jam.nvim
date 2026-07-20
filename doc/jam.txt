@@ -62,14 +62,17 @@ the app may not make it an active Spotify Connect device.
 :Jam health               Run health diagnostics.
 
 Prefix a search with `a:` for albums, `t:` for artists, `s:` for songs and
-tracks, `p:` for podcasts, or `e:` for podcast episodes. A query without a
-prefix searches all supported item types.
+tracks, `l:` for playlists, `p:` for podcasts, or `e:` for podcast episodes. A
+query without a prefix searches all supported item types.
 
-The search picker maps <CR> to open an album, artist, or podcast, or play the
-selected track or episode. Albums open in disc and track order, artists open to
-their top tracks, and podcasts open to their episodes. In a collection picker,
-<CR> plays the selected item and <Esc> returns to the original search. CTRL-Q
-queues the selected item and CTRL-P pauses playback.
+The search picker maps <CR> to open an album, artist, podcast, or playlist, or
+play the selected track or episode. Albums open in disc and track order, artists
+open to their top tracks, podcasts open to their episodes, and playlists open to
+their items when Spotify allows browsing them. Spotify Development Mode only
+exposes playlist contents for playlists you own or collaborate on; other
+playlists play immediately instead. In a collection picker, <CR> plays the
+selected item and <Esc> returns to the original search. CTRL-Q queues the
+selected item and CTRL-P pauses playback.
 
 The picker can also be opened after loading the Telescope extension:
 >

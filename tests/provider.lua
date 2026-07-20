@@ -161,12 +161,92 @@ assert(episodes[1].list_position == 1)
 assert(episodes[2].image_url == "https://example.com/show.jpg")
 assert(episodes[2].list_position == 2)
 
+local playlist_requests = {}
+http.request = function(opts, callback)
+  table.insert(playlist_requests, opts)
+  if #playlist_requests == 1 then
+    callback(nil, {
+      items = {
+        {
+          item = {
+            id = "playlist-track-one",
+            uri = "spotify:track:playlist-one",
+            type = "track",
+            name = "Playlist Track",
+            artists = { { name = "Playlist Artist" } },
+            album = {
+              name = "Playlist Album",
+              images = { { url = "https://example.com/playlist-track.jpg" } },
+            },
+            duration_ms = 200000,
+          },
+        },
+        {
+          track = {
+            id = "legacy-track",
+            uri = "spotify:track:legacy",
+            name = "Legacy Track Field",
+            artists = { { name = "Legacy Artist" } },
+            duration_ms = 180000,
+          },
+        },
+        {
+          item = nil,
+        },
+      },
+      next = "https://api.spotify.com/v1/playlists/test-playlist/items?limit=50&offset=50",
+    })
+  else
+    callback(nil, {
+      items = {
+        {
+          item = {
+            id = "playlist-episode-one",
+            uri = "spotify:episode:playlist-one",
+            type = "episode",
+            name = "Playlist Episode",
+            show = { name = "Playlist Podcast" },
+            duration_ms = 2400000,
+          },
+        },
+      },
+      next = vim.NIL,
+    })
+  end
+end
+
+local playlist_items
+provider:playlist_items({
+  id = "test-playlist",
+  name = "Test Playlist",
+  image_url = "https://example.com/playlist.jpg",
+}, function(err, items)
+  callback_error = err
+  playlist_items = items
+end)
+
+assert(not callback_error, callback_error)
+assert(#playlist_requests == 2)
+assert(playlist_requests[1].url:find("/playlists/test%-playlist/items%?"))
+assert(playlist_requests[1].url:find("additional_types=track%2Cepisode", 1, true))
+assert(#playlist_items == 3)
+assert(playlist_items[1].kind == "track")
+assert(playlist_items[1].name == "Playlist Track")
+assert(playlist_items[1].list_position == 1)
+assert(playlist_items[2].kind == "track")
+assert(playlist_items[2].name == "Legacy Track Field")
+assert(playlist_items[2].image_url == "https://example.com/playlist.jpg")
+assert(playlist_items[3].kind == "episode")
+assert(playlist_items[3].podcast == "Playlist Podcast")
+assert(playlist_items[3].list_position == 3)
+
 for _, filter in ipairs({
   { query = "a: Test Album", expected_type = "album" },
   { query = "t: Test Artist", expected_type = "artist" },
   { query = "s: Test Song", expected_type = "track" },
   { query = "p: Test Podcast", expected_type = "show" },
   { query = "e: Test Episode", expected_type = "episode" },
+  { query = "l: Test Playlist", expected_type = "playlist" },
 }) do
   local search_request
   http.request = function(opts, callback)

@@ -12,6 +12,7 @@ Spotify.capabilities = {
   album_tracks = true,
   artist_top_tracks = true,
   show_episodes = true,
+  playlist_items = true,
   library = true,
   artwork = true,
 }
@@ -66,7 +67,10 @@ local function normalize(item, kind)
     total_episodes = item.total_episodes or (item.show and item.show.total_episodes),
     languages = item.languages,
     description = item.description,
-    total_tracks = item.total_tracks or (album and album.total_tracks),
+    total_tracks = item.total_tracks
+      or (album and album.total_tracks)
+      or (item.items and item.items.total)
+      or (item.tracks and item.tracks.total),
     album_type = item.album_type or (album and album.album_type),
     progress_ms = item.resume_point and item.resume_point.resume_position_ms,
     fully_played = item.resume_point and item.resume_point.fully_played,
@@ -101,13 +105,14 @@ function Spotify:search(query, options, callback)
   end
   options = options or {}
   query = vim.trim(query)
-  local prefix, filtered_query = query:match("^([aAtTsSpPeE]):%s*(.*)$")
+  local prefix, filtered_query = query:match("^([aAtTsSpPeElL]):%s*(.*)$")
   local type_by_prefix = {
     a = "album",
     t = "artist",
     s = "track",
     p = "show",
     e = "episode",
+    l = "playlist",
   }
   local types = options.types or { "track", "album", "artist", "playlist", "show", "episode" }
   if prefix then
@@ -244,6 +249,43 @@ function Spotify:show_episodes(show, callback)
   end
 
   fetch(API_URL .. "/shows/" .. util.urlencode(show.id) .. "/episodes?limit=50")
+end
+
+function Spotify:playlist_items(playlist, callback)
+  if not playlist or not playlist.id then
+    callback("A Spotify playlist ID is required")
+    return
+  end
+
+  local entries = {}
+  local function fetch(url)
+    self:_request({ url = url }, function(err, response)
+      if err then
+        callback(err)
+        return
+      end
+      for _, row in ipairs((response or {}).items or {}) do
+        local media = row and (row.item or row.track)
+        if media then
+          local kind = media.type == "episode" and "episode" or "track"
+          local entry = normalize(media, kind)
+          entry.list_position = #entries + 1
+          entry.image_url = entry.image_url or playlist.image_url
+          table.insert(entries, entry)
+        end
+      end
+      if response and type(response.next) == "string" and response.next ~= "" then
+        fetch(response.next)
+      else
+        callback(nil, entries)
+      end
+    end)
+  end
+
+  fetch(API_URL .. "/playlists/" .. util.urlencode(playlist.id) .. "/items?" .. util.query({
+    limit = 50,
+    additional_types = "track,episode",
+  }))
 end
 
 function Spotify:play(item, callback)
