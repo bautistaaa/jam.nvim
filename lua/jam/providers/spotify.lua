@@ -123,12 +123,14 @@ function Spotify:search(query, options, callback)
       return
     end
   end
+  -- Spotify Development Mode caps search limit at 10 per type.
+  local limit = math.min(options.limit or 10, 10)
   local url = API_URL
     .. "/search?"
     .. util.query({
       q = query,
       type = table.concat(types, ","),
-      limit = options.limit or 30,
+      limit = limit,
     })
 
   return self:_request({ url = url }, function(err, response)
@@ -136,7 +138,6 @@ function Spotify:search(query, options, callback)
       callback(err)
       return
     end
-    local results = {}
     local plural = {
       track = "tracks",
       album = "albums",
@@ -145,13 +146,29 @@ function Spotify:search(query, options, callback)
       show = "shows",
       episode = "episodes",
     }
+    -- Interleave by type so playlists/podcasts aren't buried under tracks.
+    local buckets = {}
+    local max_count = 0
     for _, kind in ipairs(types) do
+      local bucket = {}
       local group = response[plural[kind]]
       if type(group) == "table" then
         for _, item in ipairs(group.items or {}) do
           if item then
-            table.insert(results, normalize(item, kind))
+            table.insert(bucket, normalize(item, kind))
           end
+        end
+      end
+      table.insert(buckets, bucket)
+      if #bucket > max_count then
+        max_count = #bucket
+      end
+    end
+    local results = {}
+    for index = 1, max_count do
+      for _, bucket in ipairs(buckets) do
+        if bucket[index] then
+          table.insert(results, bucket[index])
         end
       end
     end

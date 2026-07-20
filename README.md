@@ -193,9 +193,12 @@ Search filters:
 | `p:` | Podcasts |
 | `e:` | Podcast episodes |
 
+There is no separate playlist tab. Unfiltered search mixes types in the results
+list (labeled `TRACK`, `ALBUM`, `ARTIST`, `PLAYLIST`, `PODCAST`, `EPISODE`). Use
+`l:` when you only want playlists.
+
 For example, `a:Abbey Road`, `t:BTS`, `s:One More Night`, `l:Discover Weekly`,
-`p:Radiolab`, or `e:Black Holes`. Queries without a prefix search all supported
-item types.
+`p:Radiolab`, or `e:Black Holes`.
 
 Picker mappings:
 
@@ -220,7 +223,7 @@ require("jam").setup({
   provider = "spotify",
   search = {
     debounce_ms = 250,
-    limit = 30,
+    limit = 10,
     types = { "track", "album", "artist", "playlist", "show", "episode" },
   },
   artwork = {

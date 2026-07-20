@@ -302,6 +302,50 @@ assert(metadata_results[1].genres[1] == "pop")
 assert(metadata_results[2].publisher == "Metadata Publisher")
 assert(metadata_results[2].total_episodes == 42)
 
+local interleaved_request
+local interleaved_results
+http.request = function(opts, callback)
+  interleaved_request = opts
+  callback(nil, {
+    tracks = {
+      items = {
+        { id = "t1", uri = "spotify:track:t1", name = "Track One", artists = {} },
+        { id = "t2", uri = "spotify:track:t2", name = "Track Two", artists = {} },
+      },
+    },
+    albums = {
+      items = {
+        { id = "a1", uri = "spotify:album:a1", name = "Album One", artists = {} },
+      },
+    },
+    playlists = {
+      items = {
+        {
+          id = "p1",
+          uri = "spotify:playlist:p1",
+          name = "Playlist One",
+          owner = { display_name = "Owner" },
+        },
+      },
+    },
+  })
+end
+provider:search("mixed", {
+  types = { "track", "album", "playlist" },
+  limit = 30,
+}, function(err, results)
+  callback_error = err
+  interleaved_results = results
+end)
+assert(not callback_error, callback_error)
+assert(interleaved_request.url:find("limit=10", 1, true))
+assert(#interleaved_results == 4)
+assert(interleaved_results[1].kind == "track")
+assert(interleaved_results[2].kind == "album")
+assert(interleaved_results[3].kind == "playlist")
+assert(interleaved_results[4].kind == "track")
+assert(interleaved_results[3].name == "Playlist One")
+
 local playback_error
 local episode_play_request
 http.request = function(opts, callback)

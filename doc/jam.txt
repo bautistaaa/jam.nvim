@@ -63,7 +63,9 @@ the app may not make it an active Spotify Connect device.
 
 Prefix a search with `a:` for albums, `t:` for artists, `s:` for songs and
 tracks, `l:` for playlists, `p:` for podcasts, or `e:` for podcast episodes. A
-query without a prefix searches all supported item types.
+query without a prefix searches all supported item types and mixes them in the
+results list. There is no separate playlist tab; use `l:` to show only
+playlists (labeled PLAYLIST in the results column).
 
 The search picker maps <CR> to open an album, artist, podcast, or playlist, or
 play the selected track or episode. Albums open in disc and track order, artists
