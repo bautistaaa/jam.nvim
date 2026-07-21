@@ -209,7 +209,8 @@ local function metadata_lines(item, width)
       table.insert(details, "Duration: " .. duration(item.duration_ms))
     end
     if item.total_tracks then
-      table.insert(details, "Tracks: " .. item.total_tracks)
+      local count_label = item.kind == "playlist" and "Items: " or "Tracks: "
+      table.insert(details, count_label .. item.total_tracks)
     end
     if item.album_type then
       table.insert(details, "Type: " .. item.album_type)
@@ -448,7 +449,7 @@ function M.open(provider, config, opts)
       attach_mappings = function(prompt_buffer, map)
         local loading_tracks = false
 
-        local function drill_down(item, method, title, results_title)
+        local function drill_down(item, method, title, results_title, on_error)
           if loading_tracks then
             return
           end
@@ -457,6 +458,9 @@ function M.open(provider, config, opts)
           provider[method](provider, item, function(err, tracks)
             loading_tracks = false
             if err then
+              if on_error and on_error(err) then
+                return
+              end
               util.notify(err, vim.log.levels.ERROR)
               return
             end
@@ -500,6 +504,32 @@ function M.open(provider, config, opts)
           if selected.value.kind == "show" and provider.show_episodes then
             local show = selected.value
             drill_down(show, "show_episodes", "Podcast · " .. show.name, "Episodes")
+            return
+          end
+          if selected.value.kind == "playlist" and provider.playlist_items then
+            local playlist = selected.value
+            drill_down(
+              playlist,
+              "playlist_items",
+              "Playlist · " .. playlist.name,
+              "Items",
+              function(err)
+                local lower = tostring(err):lower()
+                local forbidden = lower:find("http 403", 1, true)
+                  or lower:find("forbidden", 1, true)
+                  or lower:find("not collaborate", 1, true)
+                if not forbidden then
+                  return false
+                end
+                util.notify(
+                  "Spotify only allows browsing playlists you own or collaborate on; playing instead",
+                  vim.log.levels.INFO
+                )
+                actions.close(prompt_buffer)
+                run_action(provider, "play", playlist, "Playing " .. playlist.name)
+                return true
+              end
+            )
             return
           end
           actions.close(prompt_buffer)

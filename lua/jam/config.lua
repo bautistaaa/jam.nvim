@@ -4,7 +4,7 @@ M.defaults = {
   provider = "spotify",
   search = {
     debounce_ms = 250,
-    limit = 30,
+    limit = 10,
     types = { "track", "album", "artist", "playlist", "show", "episode" },
   },
   artwork = {
